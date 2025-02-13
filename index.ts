@@ -69,17 +69,29 @@ class Blockchain {
 
     addTransaction(transaction: Transaction): void {
         if (!transaction.sender || !transaction.recipient) {
-            throw new Error('Transaction must include sender and recipient');
+            console.error('Transaction must include sender and recipient');
+            return;
         }
 
         if (transaction.amount <= 0) {
-            throw new Error('Transaction amount should be higher than 0');
+            console.error('Transaction amount should be higher than 0');
+            return;
+        }
+
+        if (this.getBalanceOfAddress(transaction.sender) < transaction.amount) {
+            console.error('Not enough balance');
+            return;
         }
 
         this.pendingTransactions.push(transaction);
     }
 
     minePendingTransactions(minerAddress: string): void {
+        if (this.pendingTransactions.length === 0) {
+            console.error('No transactions to mine');
+            return;
+        }
+
         const block = new Block(this.pendingTransactions, this.getLatestBlock().hash);
         block.mineBlock(this.difficulty);
 
@@ -138,13 +150,17 @@ class Blockchain {
 const myCoin = new Blockchain(4, 100);
 
 // Create transactions
-myCoin.addTransaction(new Transaction('address1', 'address2', 50));
-myCoin.addTransaction(new Transaction('address2', 'address1', 30));
+myCoin.addTransaction(new Transaction('John', 'Alice', 50));
+myCoin.addTransaction(new Transaction('Alice', 'Bob', 30));
+myCoin.addTransaction(new Transaction('Bob', 'John', 20));
 
 // Mine pending transactions
 console.log('Starting the miner...');
 myCoin.minePendingTransactions('miner-address');
 
+console.log('Balance of John is', myCoin.getBalanceOfAddress('John'));
+console.log('Balance of Alice is', myCoin.getBalanceOfAddress('Alice'));
+console.log('Balance of Bob is', myCoin.getBalanceOfAddress('Bob'));
 console.log('Balance of miner is', myCoin.getBalanceOfAddress('miner-address'));
 
 // Mine again to get the reward for the previous block

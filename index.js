@@ -46,34 +46,52 @@ class Blockchain {
         return this.chain[this.chain.length - 1];
     }
     addTransaction(transaction) {
-        if (!transaction.sender || !transaction.recipient) {
-            throw new Error('Transaction must include sender and recipient');
+        try {
+            if (!transaction.sender || !transaction.recipient) {
+                throw new Error('Transaction must include sender and recipient');
+            }
+            if (transaction.amount <= 0) {
+                throw new Error('Transaction amount should be higher than 0');
+            }
+            if (this.getBalanceOfAddress(transaction.sender) < transaction.amount) {
+                throw new Error('Not enough balance');
+            }
+            this.pendingTransactions.push(transaction);
         }
-        if (transaction.amount <= 0) {
-            throw new Error('Transaction amount should be higher than 0');
+        catch (error) {
+            console.error('Failed to add transaction:', error.message);
         }
-        this.pendingTransactions.push(transaction);
     }
     minePendingTransactions(minerAddress) {
-        const block = new Block(this.pendingTransactions, this.getLatestBlock().hash);
-        block.mineBlock(this.difficulty);
-        console.log('Block successfully mined!');
-        this.chain.push(block);
-        this.pendingTransactions = [
-            new transaction_1.Transaction('', minerAddress, this.miningReward)
-        ];
+        try {
+            const block = new Block(this.pendingTransactions, this.getLatestBlock().hash);
+            block.mineBlock(this.difficulty);
+            console.log('Block successfully mined!');
+            this.chain.push(block);
+            this.pendingTransactions = [
+                new transaction_1.Transaction('', minerAddress, this.miningReward)
+            ];
+        }
+        catch (error) {
+            console.error('Failed to mine block:', error.message);
+        }
     }
     getBalanceOfAddress(address) {
         let balance = 0;
-        for (const block of this.chain) {
-            for (const trans of block.transactions) {
-                if (trans.sender === address) {
-                    balance -= trans.amount;
-                }
-                if (trans.recipient === address) {
-                    balance += trans.amount;
+        try {
+            for (const block of this.chain) {
+                for (const trans of block.transactions) {
+                    if (trans.sender === address) {
+                        balance -= trans.amount;
+                    }
+                    if (trans.recipient === address) {
+                        balance += trans.amount;
+                    }
                 }
             }
+        }
+        catch (error) {
+            console.error('Failed to get balance:', error.message);
         }
         return balance;
     }
@@ -99,15 +117,24 @@ class Blockchain {
     }
 }
 // Example usage
-const myCoin = new Blockchain(4, 100);
-// Create transactions
-myCoin.addTransaction(new transaction_1.Transaction('address1', 'address2', 50));
-myCoin.addTransaction(new transaction_1.Transaction('address2', 'address1', 30));
-// Mine pending transactions
-console.log('Starting the miner...');
-myCoin.minePendingTransactions('miner-address');
-console.log('Balance of miner is', myCoin.getBalanceOfAddress('miner-address'));
-// Mine again to get the reward for the previous block
-console.log('Starting the miner again...');
-myCoin.minePendingTransactions('miner-address');
-console.log('Balance of miner is', myCoin.getBalanceOfAddress('miner-address'));
+try {
+    const myCoin = new Blockchain(4, 100);
+    // Create transactions
+    myCoin.addTransaction(new transaction_1.Transaction('John', 'Alice', 50));
+    myCoin.addTransaction(new transaction_1.Transaction('Alice', 'Bob', 30));
+    myCoin.addTransaction(new transaction_1.Transaction('Bob', 'John', 20));
+    // Mine pending transactions
+    console.log('Starting the miner...');
+    myCoin.minePendingTransactions('miner-address');
+    console.log('Balance of John is', myCoin.getBalanceOfAddress('John'));
+    console.log('Balance of Alice is', myCoin.getBalanceOfAddress('Alice'));
+    console.log('Balance of Bob is', myCoin.getBalanceOfAddress('Bob'));
+    console.log('Balance of miner is', myCoin.getBalanceOfAddress('miner-address'));
+    // Mine again to get the reward for the previous block
+    console.log('Starting the miner again...');
+    myCoin.minePendingTransactions('miner-address');
+    console.log('Balance of miner is', myCoin.getBalanceOfAddress('miner-address'));
+}
+catch (error) {
+    console.error('An error occurred during the blockchain operations:', error.message);
+}
