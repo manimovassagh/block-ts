@@ -83,6 +83,7 @@ class Blockchain {
             return;
         }
 
+        console.log(`Adding transaction from ${transaction.sender} to ${transaction.recipient} for ${transaction.amount}`);
         this.pendingTransactions.push(transaction);
     }
 
@@ -99,7 +100,7 @@ class Blockchain {
         this.chain.push(block);
 
         this.pendingTransactions = [
-            new Transaction('', minerAddress, this.miningReward)
+            new Transaction(null, minerAddress, this.miningReward)
         ];
     }
 
