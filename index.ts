@@ -1,13 +1,17 @@
+import { Transaction } from './transaction';
+
 class Block {
     public hash: string;
     public nonce: number = 0;
     public previousHash: string;
     public timestamp: number;
-    
+    public transactions: Transaction[];
+
     constructor(
-        public data: any,
+        transactions: Transaction[],
         previousHash = ''
     ) {
+        this.transactions = transactions;
         this.previousHash = previousHash;
         this.timestamp = Date.now();
         this.hash = this.calculateHash();
@@ -20,7 +24,7 @@ class Block {
             .update(
                 this.previousHash +
                 this.timestamp +
-                JSON.stringify(this.data) +
+                JSON.stringify(this.transactions) +
                 this.nonce
             )
             .digest('hex');
@@ -46,28 +50,63 @@ class Block {
 class Blockchain {
     private chain: Block[];
     private difficulty: number;
+    private pendingTransactions: Transaction[] = [];
+    private miningReward: number;
 
-    constructor(difficulty: number = 4) {
+    constructor(difficulty: number = 4, miningReward: number = 100) {
         this.chain = [this.createGenesisBlock()];
         this.difficulty = difficulty;
+        this.miningReward = miningReward;
     }
 
     private createGenesisBlock(): Block {
-        return new Block({ message: "Genesis Block" }, "0");
+        return new Block([], "0");
     }
 
     getLatestBlock(): Block {
         return this.chain[this.chain.length - 1];
     }
 
-    addBlock(data: any): void {
-        const previousBlock = this.getLatestBlock();
-        const newBlock = new Block(data, previousBlock.hash);
-        
-        console.log('Mining new block...');
-        newBlock.mineBlock(this.difficulty);
-        
-        this.chain.push(newBlock);
+    addTransaction(transaction: Transaction): void {
+        if (!transaction.sender || !transaction.recipient) {
+            throw new Error('Transaction must include sender and recipient');
+        }
+
+        if (transaction.amount <= 0) {
+            throw new Error('Transaction amount should be higher than 0');
+        }
+
+        this.pendingTransactions.push(transaction);
+    }
+
+    minePendingTransactions(minerAddress: string): void {
+        const block = new Block(this.pendingTransactions, this.getLatestBlock().hash);
+        block.mineBlock(this.difficulty);
+
+        console.log('Block successfully mined!');
+        this.chain.push(block);
+
+        this.pendingTransactions = [
+            new Transaction('', minerAddress, this.miningReward)
+        ];
+    }
+
+    getBalanceOfAddress(address: string): number {
+        let balance = 0;
+
+        for (const block of this.chain) {
+            for (const trans of block.transactions) {
+                if (trans.sender === address) {
+                    balance -= trans.amount;
+                }
+
+                if (trans.recipient === address) {
+                    balance += trans.amount;
+                }
+            }
+        }
+
+        return balance;
     }
 
     isChainValid(): boolean {
@@ -96,17 +135,20 @@ class Blockchain {
 }
 
 // Example usage
-const myCoin = new Blockchain(6); // Create blockchain with difficulty 4
+const myCoin = new Blockchain(4, 100);
 
-// Add some blocks
-console.log('Adding first block...');
-myCoin.addBlock({ amount: 10, sender: "John", recipient: "Alice" });
+// Create transactions
+myCoin.addTransaction(new Transaction('address1', 'address2', 50));
+myCoin.addTransaction(new Transaction('address2', 'address1', 30));
 
-console.log('Adding second block...');
-myCoin.addBlock({ amount: 20, sender: "Alice", recipient: "Bob" });
+// Mine pending transactions
+console.log('Starting the miner...');
+myCoin.minePendingTransactions('miner-address');
 
-// Verify the chain
-console.log('Is chain valid?', myCoin.isChainValid());
+console.log('Balance of miner is', myCoin.getBalanceOfAddress('miner-address'));
 
-// Display the full chain
-console.log('Full blockchain:', JSON.stringify(myCoin.getChain(), null, 2));
+// Mine again to get the reward for the previous block
+console.log('Starting the miner again...');
+myCoin.minePendingTransactions('miner-address');
+
+console.log('Balance of miner is', myCoin.getBalanceOfAddress('miner-address'));
